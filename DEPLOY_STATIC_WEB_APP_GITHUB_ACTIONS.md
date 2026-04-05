@@ -2,8 +2,8 @@
 
 ## Files Added
 
-- `.github/workflows/deploy-static-web-app.yml`
-- `frontend/public/staticwebapp.config.json`
+- `.github/workflows/azure-static-web-apps-blue-sky-0535a0000.yml`
+- `public/staticwebapp.config.json`
 
 ## One-time Azure Setup
 
@@ -11,13 +11,13 @@
 2. In the Static Web App resource, open **Manage deployment token** and copy the token.
 3. In GitHub repo settings, add this secret:
    - `AZURE_STATIC_WEB_APPS_API_TOKEN`
-4. Set API URL in `frontend/.env` (used during GitHub Actions build):
+4. Set API URL in `.env` (used during GitHub Actions build):
 
 ```env
 VITE_LEAD_FOLLOWUP_BASE_URL=https://mgt-leadfollowup-func-0405.azurewebsites.net/api/v1/lead-followup
 ```
 
-The workflow now builds using `frontend/.env` directly and does not rely on SWA app settings for this variable.
+The workflow now builds using `.env` directly and does not rely on SWA app settings for this variable.
 
 ## Setting `VITE_LEAD_FOLLOWUP_BASE_URL` in SWA Portal
 
@@ -25,9 +25,9 @@ The workflow now builds using `frontend/.env` directly and does not rely on SWA 
 
 Use one of these approaches:
 
-### Approach 1: Keep value in `frontend/.env` (current setup)
+### Approach 1: Keep value in `.env` (current setup)
 
-1. Open `frontend/.env`.
+1. Open `.env`.
 2. Set:
 
 ```env
@@ -36,7 +36,7 @@ VITE_LEAD_FOLLOWUP_BASE_URL=https://mgt-leadfollowup-func-0405.azurewebsites.net
 
 3. Commit and push changes (if `.env` is intentionally tracked in your repo workflow).
 4. Trigger the workflow by pushing to `main`/`master`.
-5. GitHub Actions runs `npm run build`, and Vite injects the value from `frontend/.env` into the build.
+5. GitHub Actions runs `npm run build`, and Vite injects the value from `.env` into the build.
 
 ### Approach 2: Inject from GitHub Actions variables during build
 
@@ -44,18 +44,22 @@ VITE_LEAD_FOLLOWUP_BASE_URL=https://mgt-leadfollowup-func-0405.azurewebsites.net
 2. Create variable:
     - Name: `VITE_LEAD_FOLLOWUP_BASE_URL`
     - Value: `https://mgt-leadfollowup-func-0405.azurewebsites.net/api/v1/lead-followup`
-3. Update workflow build step in `.github/workflows/deploy-static-web-app.yml`:
+3. Add/verify the conditional build steps in `.github/workflows/azure-static-web-apps-blue-sky-0535a0000.yml`:
 
 ```yaml
-- name: Build frontend
-   working-directory: frontend
+- name: Build frontend (using GitHub variable)
+   if: ${{ vars.VITE_LEAD_FOLLOWUP_BASE_URL != '' }}
    env:
       VITE_LEAD_FOLLOWUP_BASE_URL: ${{ vars.VITE_LEAD_FOLLOWUP_BASE_URL }}
+   run: npm run build
+
+- name: Build frontend (using .env)
+   if: ${{ vars.VITE_LEAD_FOLLOWUP_BASE_URL == '' }}
    run: npm run build
 ```
 
 4. Commit and push workflow changes.
-5. Trigger deployment; the variable is injected during build without relying on `frontend/.env`.
+5. Trigger deployment; the variable is injected during build without relying on `.env`.
 
 If you need changing base URL without rebuilding, use a runtime `config.json` pattern instead of Vite `import.meta.env`.
 
@@ -76,25 +80,26 @@ If you need changing base URL without rebuilding, use a runtime `config.json` pa
    - App location: `/`
    - Api location: leave blank
    - Output location: leave blank
-   (We use our custom workflow in `.github/workflows/deploy-static-web-app.yml`.)
+   (We use our custom workflow in `.github/workflows/azure-static-web-apps-blue-sky-0535a0000.yml`.)
 8. Click **Review + create** -> **Create**.
 9. After resource is created, go to Static Web App -> **Manage deployment token** -> copy token.
 10. In GitHub repo: **Settings -> Secrets and variables -> Actions -> New repository secret**:
     - Name: `AZURE_STATIC_WEB_APPS_API_TOKEN`
     - Value: token from step 9
-11. Commit and push any change under `frontend/` (or run workflow manually if enabled) to trigger deployment.
+11. Commit and push changes in this frontend repository (or run workflow manually if enabled) to trigger deployment.
 12. Verify:
     - Actions tab shows successful run.
     - Static Web App URL loads frontend.
-    - Frontend calls your Function URL from `frontend/.env`.
+   - Frontend calls your Function URL from `.env`.
 
 ## Triggering Deployments
 
-- Push to `main` or `master` with changes in `frontend/**`.
+- Push to `main` or `master` with changes in frontend source/config files (`src/**`, `public/**`, `index.html`, `package*.json`, `vite.config.js`, `.env`, workflow file).
 - Pull requests to `main`/`master` also deploy preview environments.
 - Closing a PR closes its preview environment.
 
 ## Notes
 
-- The workflow builds the app with Node.js 20 and deploys the built `frontend/dist` folder.
-- `staticwebapp.config.json` is placed in `frontend/public`, so Vite copies it to `dist` during build.
+- The workflow builds the app with Node.js 20 and deploys the built `dist` folder.
+- `staticwebapp.config.json` is placed in `public`, so Vite copies it to `dist` during build.
+- This file structure assumes `frontend/` is a standalone GitHub repository root.
